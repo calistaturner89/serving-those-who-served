@@ -22,22 +22,17 @@
 <h2 id="suggest-title">Suggest a Resource</h2>
 <p class="intro">Know a community-based therapist, clinic, peer-support group, or organization that could support LGBTQ+ veterans in the Pikes Peak Region? Help us identify resources for review. You don't need to know whether a provider meets both specialties.</p>
 <div class="card" style="padding:24px">
-<form id="suggest-form">
+<form id="suggest-form" action="https://formspree.io/f/xbggqogd" method="POST">
 <div class="suggest-grid">
-<div class="suggest-field"><label for="resource-name">Provider or organization name *</label><input id="resource-name" required maxlength="160" placeholder="Name of resource"></div>
-<div class="suggest-field"><label for="resource-type">Resource type *</label><select id="resource-type" required><option value="">Select one</option><option>Individual therapist</option><option>Clinic or group practice</option><option>Peer support or support group</option><option>Community organization</option><option>Other</option></select></div>
-<div class="suggest-field"><label for="resource-link">Website or public contact link</label><input id="resource-link" type="url" placeholder="https://..."></div>
-<div class="suggest-field"><label for="resource-focus">Known areas of experience</label><select id="resource-focus"><option value="Not sure">Not sure</option><option>LGBTQ+-affirming care</option><option>Military/veteran care</option><option>Both LGBTQ+ and military/veteran care</option></select></div>
+<div class="suggest-field"><label for="resource-name">Provider or organization name *</label><input id="resource-name" name="resource_name" required maxlength="160" placeholder="Name of resource"></div>
+<div class="suggest-field"><label for="resource-type">Resource type *</label><select id="resource-type" name="resource_type" required><option value="">Select one</option><option>Individual therapist</option><option>Clinic or group practice</option><option>Peer support or support group</option><option>Community organization</option><option>Other</option></select></div>
+<div class="suggest-field"><label for="resource-link">Website or public contact link</label><input id="resource-link" name="resource_url" type="url" placeholder="https://..."></div>
+<div class="suggest-field"><label for="resource-focus">Known areas of experience</label><select id="resource-focus" name="experience_focus"><option value="Not sure">Not sure</option><option>LGBTQ+-affirming care</option><option>Military/veteran care</option><option>Both LGBTQ+ and military/veteran care</option></select></div>
 </div>
-<div class="suggest-field"><label for="resource-reason">Why should we consider this resource?</label><textarea id="resource-reason" maxlength="1200" placeholder="Share publicly available qualifications, services, or relevant details. Please do not include personal health information."></textarea></div>
-<div class="suggest-actions"><button class="btn" type="submit">Prepare suggestion</button><span id="suggest-status" role="status" aria-live="polite"></span></div>
+<div class="suggest-field"><label for="resource-reason">Why should we consider this resource?</label><textarea id="resource-reason" name="reason_for_suggestion" maxlength="1200" placeholder="Share publicly available qualifications, services, or relevant details. Please do not include personal health information."></textarea></div>
+<div class="suggest-actions"><button class="btn" type="submit" id="suggest-submit">Submit recommendation</button><span id="suggest-status" role="status" aria-live="polite"></span></div>
 </form>
-<div id="suggest-result" hidden style="margin-top:20px">
-<p><strong>Your suggestion is ready.</strong> Copy the text below to share with the project organizer. This website does not yet receive or store submissions.</p>
-<div class="suggest-field"><label for="suggest-output">Suggestion text</label><textarea id="suggest-output" readonly rows="8"></textarea></div>
-<button type="button" class="btn secondary" id="suggest-copy">Copy suggestion</button>
-</div>
-<p class="suggest-note">Privacy: Do not submit private client information, diagnoses, or personal treatment experiences. Suggestions are not endorsements. Resources must be reviewed before being added. A direct submission option can be connected once a project contact email or form service is available.</p>
+<p class="suggest-note">Privacy: Do not submit private client information, diagnoses, or personal treatment experiences. Suggestions are not endorsements. Resources must be reviewed before being added. Submissions are sent to the project organizer through Formspree for review. Submission does not guarantee inclusion. This form is not for crisis support or medical questions.</p>
 </div></div></section>
 </main>
 <footer><div class="wrap"><strong>Serving Those Who Served</strong><p>Expanding Queer-Affirming Mental Health Care in the Pikes Peak Region</p><p>Calista Turner · Master of Social Work Student · University of Colorado Colorado Springs</p><p class="footnote">Independent educational advocacy project. Not affiliated with or endorsed by the listed providers or organizations. This site does not provide medical advice, verify licensure, or guarantee provider availability. Information last reviewed: November 2026.</p></div></footer>
@@ -66,25 +61,31 @@ const q=document.getElementById('q'),type=document.getElementById('type'),focus=
 function render(){let term=q.value.toLowerCase().trim();let filtered=resources.filter(r=>(!term||[r.name,r.subtitle,r.desc,r.source].join(' ').toLowerCase().includes(term))&&(type.value==='all'||r.type===type.value)&&(focus.value==='all'||r.focus===focus.value||(focus.value==='lgbtq'&&r.focus==='both')||(focus.value==='military'&&r.focus==='both'))&&(!tele.checked||r.tele)&&(!free.checked||r.free));count.textContent=`Showing ${filtered.length} of ${resources.length} resources`;cards.replaceChildren();for(let r of filtered){let card=document.createElement('article');card.className='card';let tags=r.focus==='both'?'<span class="tag both">Military + LGBTQ+ experience documented</span>':r.focus==='lgbtq'?'<span class="tag">LGBTQ+ affirming · military experience not documented</span>':r.focus==='military'?'<span class="tag unknown">Veteran focused · LGBTQ+ experience to confirm</span>':'<span class="tag">General community support</span>';card.innerHTML=`${tags}<h3></h3><div class="small"></div><p></p><p class="small"></p><p class="small"></p><div class="actions"><a target="_blank" rel="noopener noreferrer">View official resource ↗</a></div>`;card.querySelector('h3').textContent=r.name;card.querySelectorAll('.small')[0].textContent=r.subtitle;card.querySelector('p').textContent=r.desc;card.querySelectorAll('.small')[1].textContent='Source: '+r.source;card.querySelectorAll('.small')[2].textContent=r.note;card.querySelector('a').href=r.url;cards.appendChild(card)}if(!filtered.length){let empty=document.createElement('div');empty.className='alert';empty.textContent='No matching listings. Try clearing a filter or searching a broader term.';cards.appendChild(empty)}}[q,type,focus,tele,free].forEach(e=>e.addEventListener('input',render));render();
 
 const suggestionForm=document.getElementById('suggest-form');
-suggestionForm.addEventListener('submit',function(event){
+const suggestionStatus=document.getElementById('suggest-status');
+const suggestionButton=document.getElementById('suggest-submit');
+suggestionForm.addEventListener('submit',async function(event){
  event.preventDefault();
  if(!suggestionForm.reportValidity())return;
- const val=id=>document.getElementById(id).value.trim();
- const suggestion=[
-  'Resource suggestion — Serving Those Who Served',
-  'Name: '+val('resource-name'),
-  'Type: '+val('resource-type'),
-  'Website/contact: '+(val('resource-link')||'Not supplied'),
-  'Experience: '+val('resource-focus'),
-  'Reason: '+(val('resource-reason')||'Not supplied')
- ].join('\n');
- document.getElementById('suggest-output').value=suggestion;
- document.getElementById('suggest-result').hidden=false;
- document.getElementById('suggest-status').textContent='Suggestion prepared below.';
-});
-document.getElementById('suggest-copy').addEventListener('click',async function(){
- const output=document.getElementById('suggest-output');
- try{await navigator.clipboard.writeText(output.value);this.textContent='Copied!';}
- catch(e){output.focus();output.select();this.textContent='Select and copy the text';}
+ suggestionButton.disabled=true;
+ suggestionButton.textContent='Sending…';
+ suggestionStatus.textContent='Submitting your recommendation…';
+ try{
+  const response=await fetch(suggestionForm.action,{
+   method:'POST',body:new FormData(suggestionForm),
+   headers:{'Accept':'application/json'}
+  });
+  if(!response.ok){
+   let message='Your recommendation could not be submitted. Please try again.';
+   try{const data=await response.json();if(Array.isArray(data.errors)&&data.errors.length)message=data.errors.map(e=>e.message).filter(Boolean).join(' ')}catch(_ignored){}
+   throw new Error(message);
+  }
+  suggestionForm.reset();
+  suggestionStatus.textContent='Thank you! Your recommendation was submitted successfully and will be reviewed before any listing is added.';
+ }catch(error){
+  suggestionStatus.textContent=error.message||'Unable to send. Please try again later.';
+ }finally{
+  suggestionButton.disabled=false;
+  suggestionButton.textContent='Submit recommendation';
+ }
 });
 </script></body></html>
